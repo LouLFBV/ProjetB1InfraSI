@@ -376,12 +376,5 @@ On a donc :
 
 
 
-
-
-
-
-
-
-
 ---
 Projet B1 - Infrastructure & Système d’Information - Ynov - LEFEBVRE Lou, CABANES Hugo, CAETANO Maël
