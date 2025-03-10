@@ -1,37 +1,3 @@
-<<<<<<< HEAD
-# Projet VPN 
-
-### Documentation utilisateur :
-
-
-
-
-
-
-
-
-
-
-
-### Documentation technique :
-
-On va réaliser le troisème sujet : PROJET " VPN (Diculté : 3)".
-Puis, si nous avons le temps, on ajoutera des éléments du deuxième sujet : PROJET " ROUTEUR (Diculté : 2)",
-dans le but d'améliorer notre projet.
-
-
-
-
-
-
-
-
-
-
-
-
-Projet B1 - Infrastructure & Système d’Information - Ynov - LEFEBVRE Lou, CABANES Hugo, CAETANO Maël
-=======
 # Projet VPN 
 
 ### Documentation utilisateur :
@@ -330,11 +296,83 @@ PING 10.8.0.1 (10.8.0.1) 56(84) bytes of data.
 rtt min/avg/max/mdev = 0.107/0.182/0.357/0.102 ms
 ```
 
+Prochaine étape : Connecter un client Ubuntu au VPN (on créer la clé privée du client et son certificat)
+```
+[lou@localhost 3.1.6]$ cd ~/openvpn-ca/3.1.6 && ./easyrsa gen-req client1 nopass && ./easyrsa sign-req client client1
+```
+Cela génére : /home/lou/openvpn-ca/3.1.6/pki/issued/client1.crt et 
+/home/lou/openvpn-ca/3.1.6/pki/private/client1.key
  
+ On copie les fichiers vers le client :
+ ```
+[lou@localhost 3.1.6]$ scp /etc/openvpn/server/ca.crt lou@10.0.2.15:/home/lou/ &&
+scp ~/openvpn-ca/3.1.6/pki/issued/client1.crt lou@10.0.2.15:/home/lou/ &&
+scp ~/openvpn-ca/3.1.6/pki/private/client1.key lou@10.0.2.15:/home/lou/ &&
+scp /etc/openvpn/server/ta.key lou@10.0.2.15:/home/lou/
+ ```
+
+
+=> On passe sur la Machine Client 
+
 Sur la Machine Client :
 
+Installer OpenVPN:
+```
+[lou@localhost]$ sudo apt update
+[lou@localhost]$ sudo apt install openvpn -y
+```
+
+Créer le fichier de configuration :
+```
+[lou@localhost]$ sudo nano /etc/openvpn/client.conf
 
 
+client
+dev tun
+proto udp
+remote 10.8.0.1 1194
+
+ca /home/lou/ca.crt
+cert /home/lou/client1.crt
+key /home/lou/client1.key
+tls-auth /home/lou/ta.key 1
+
+cipher AES-256-CBC
+auth SHA256
+persist-key
+persist-tun
+verb 3
+```
+
+Démarrer OpenVPN :
+```
+[lou@localhost]$ sudo openvpn --config /etc/openvpn/client.conf
+```
+
+Vérifier que tout fonctionne :
+- Vérifier l’adresse IP VPN :
+```
+[lou@localhost]$ ip a show tun0
+```
+- Vérifier le routage :
+```
+[lou@localhost]$ ip r
+```
+- Pinger le serveur VPN :
+```
+[lou@localhost]$ ping 10.8.0.1
+```
+- Tester l’IP publique (doit être celle du serveur VPN) :
+```
+[lou@localhost]$ curl ifconfig.me
+```
+
+
+On a donc :
+✅ Un schéma réseau
+✅ Une procédure d’installation détaillée
+✅ Un guide utilisateur pour la connexion au VPN
+✅ Des tests de connexion (ping, IP publique, etc.)
 
 
 
@@ -347,4 +385,3 @@ Sur la Machine Client :
 
 ---
 Projet B1 - Infrastructure & Système d’Information - Ynov - LEFEBVRE Lou, CABANES Hugo, CAETANO Maël
->>>>>>> 1c51f8d (03/03)
