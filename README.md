@@ -14,17 +14,12 @@
 
 ### Documentation technique :
 
-on va mettre en place un serveur VPN. On va utiliser Open VPN
-Le but : on se connecte à un serveur VPN en tant que client (là ce sera une VM le serveur VPN, mais à l'autre bout du monde ça a le même effet).
-Une fois connecté au VPN, on accès à :
+On va mettre en place un serveur VPN. On va utiliser Open VPN
+Le but : on se connecte à un serveur VPN en tant que client.
+On peut désigner le serveur VPN comme passerelleainsi, notre traffic ira jusqu'au serveur VPN avant de sortir sur internet
 
 
-on peut désigner le serveur VPN comme passerelle
-
-ainsi, notre traffic ira jusqu'au serveur VPN avant de sortir sur internet
-
-
-Sur la Machine VPN :
+#### Sur la Machine VPN :
 
 Mise à jour du server :
 ```
@@ -314,17 +309,95 @@ scp /etc/openvpn/server/ta.key lou@10.0.2.15:/home/lou/
 
 => On passe sur la Machine Client 
 
-Sur la Machine Client :
+
+=> On revient après sur la Machine VPN pour ajouter MFA (Multi-Factor Authentication) sur OpenVPN
+
+Installer Google Authenticator sur le serveur VPN et installer pam_oath (librairie pour l’authentification OTP)
+```
+[lou@localhost ~]$ sudo dnf install google-authenticator -y
+[lou@localhost ~]$ sudo dnf install pam_oath -y
+```
+
+Configurer Google Authenticator pour un utilisateur
+```
+[lou@localhost ~]$ google-authenticator -y -y -y -y -y
+```
+
+Configurer PAM pour utiliser Google Authenticator
+Modifie le fichier PAM d’OpenVPN :
+```
+[lou@localhost ~]$ sudo nano /etc/pam.d/openvpn
+
+auth required pam_google_authenticator.so nullok
+```
+
+Modifier la configuration OpenVPN en ajoutant les lignes suivantes :
+```
+[lou@localhost ~]$ sudo nano /etc/openvpn/server/server.conf
+
+plugin /usr/lib64/openvpn/plugins/openvpn-plugin-auth-pam.so openvpn
+verify-client-cert none
+username-as-common-name
+```
+
+Redémarrer OpenVPN pour appliquer les changements :
+```
+[lou@localhost ~]$ sudo systemctl restart openvpn-server@server
+```
+
+Vérifier s'il fonctionne :
+```
+[lou@localhost ~]$ sudo systemctl status openvpn-server@server
+```
+
+=> On repasse sur la machine client pour modifier sa configuration 
+
+
+
+
+
+
+
+### Installation de opnsense : 
+
+Prérequis :
+- 1 carte accès par pont 
+- 1 carte host only
+- Type BSD 
+- Version FreeBSD 64 Bit
+- iso opnsense
+- 16 Go d espace libre 
+
+
+Installation :
+- Ensuite tu lance la machine
+- Commence installation
+- Login : installer         mdp : opnsense
+- Yes
+- UFS
+- da0 ou celui avec le plus d espace
+- yes
+- exit and reboot 
+- retire disk de vm 
+- lance machine 
+- login : root             mdp : opnsense
+- 1 - no - no - Select Wan - suivre indication
+- 2 - LAN(1) -  n - ip carte(192.168.56.1) - select 24 or 16 or 8 - enter - no - n - enter - y - enter ip carte(192.168.56.10)  - (192.168.56.100) - n - y - y
+- Ensuite aller sur chrome
+
+
+
+ #### Sur la Machine Client :
 
 Installer OpenVPN:
 ```
-[lou@localhost]$ sudo apt update
-[lou@localhost]$ sudo apt install openvpn -y
+lou@client3:~$ sudo apt update
+lou@client3:~$ sudo apt install openvpn -y
 ```
 
 Créer le fichier de configuration :
 ```
-[lou@localhost]$ sudo nano /etc/openvpn/client.conf
+lou@client3:~$ sudo nano /etc/openvpn/client.conf
 
 
 client
@@ -346,25 +419,25 @@ verb 3
 
 Démarrer OpenVPN :
 ```
-[lou@localhost]$ sudo openvpn --config /etc/openvpn/client.conf
+lou@client3:~$ sudo openvpn --config /etc/openvpn/client.conf
 ```
 
 Vérifier que tout fonctionne :
 - Vérifier l’adresse IP VPN :
 ```
-[lou@localhost]$ ip a show tun0
+lou@client3:~$ ip a show tun0
 ```
 - Vérifier le routage :
 ```
-[lou@localhost]$ ip r
+lou@client3:~$ ip r
 ```
 - Pinger le serveur VPN :
 ```
-[lou@localhost]$ ping 10.8.0.1
+lou@client3:~$ ping 10.8.0.1
 ```
 - Tester l’IP publique (doit être celle du serveur VPN) :
 ```
-[lou@localhost]$ curl ifconfig.me
+lou@client3:~$ curl ifconfig.me
 ```
 
 
@@ -374,7 +447,27 @@ On a donc :
 ✅ Un guide utilisateur pour la connexion au VPN
 ✅ Des tests de connexion (ping, IP publique, etc.)
 
+ => De retour sur la machine client pour modifier sa configuration :
+ Modifier la configuration du client en ajoutant la ligne suivante :
+ ```
+lou@client3:~$ sudo nano /etc/openvpn/client.conf
 
+auth-user-pass
+ ```
+
+Se connecter avec MFA :
+```
+lou@client3:~$ sudo openvpn --config /etc/openvpn/client.conf
+```
+Le mot de passe est donc : (mot de passe UNIX) + (code Google Authenticator)
+
+
+✅ Test et validation
+- Se connecter avec OpenVPN.
+- Vérifier que le serveur demande bien un OTP.
+- Vérifier l'accès VPN (ip a show tun0, ping 10.8.0.1).
+- Tester une connexion SSH avec le VPN actif.
+- Vérifier que les logs (sudo journalctl -xeu openvpn-server@server) ne contiennent pas d’erreurs.
 
 ---
 Projet B1 - Infrastructure & Système d’Information - Ynov - LEFEBVRE Lou, CABANES Hugo, CAETANO Maël
